@@ -1,4 +1,4 @@
-<p align="center"><a href="media/explainer-widescreen.mp4">Watch the widescreen cut</a></p>
+https://github.com/user-attachments/assets/b84c457f-77d5-42dc-b18d-0e28270cb8e3
 
 <p align="center">
   2 minutes 56 seconds, sound on. On a phone? Watch the <a href="media/explainer-vertical.mp4">vertical cut</a>.
