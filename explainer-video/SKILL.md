@@ -120,6 +120,14 @@ node build.mjs                      # the render, about 4 minutes on a laptop â†
 python3 qa.py out/<name>-v1.mp4     # contact sheet, first frame, phone safe zone, blacks, a strip per transition
 ```
 
+**The phone safe zone is measured, not eyeballed.** On a vertical cut, `qa.py` scans four frames a second for anything
+bright in the areas a phone's full-screen player hides (the status bar at the top, the caption and scrubber at the
+bottom, about 9% cropped off each side, the like/comment rail on the right) and prints the time ranges, plus
+`qa/<name>-safe-hits.jpg` with one shaded frame per range. `build.mjs` only checks titles, so a scene's own labels are
+yours to keep clear: every word that sits in the red gets moved. Decoration, full-frame footage, and a word flying in
+or out (a hit under a second) may stay. Fix it for the vertical cut only, so the widescreen stays as it was approved:
+wrap the scene in a lower `translateY`, or write the one position as `LAND ? a : b`.
+
 **The audit is the check a still frame can't do.** It scrubs the whole timeline and lists every place words and
 pictures fight: a shape painting over words, a line through words (thin dashed markers included), words on a
 see-through or low-contrast shape, a title sitting on the scene, words running past the edge of their own card, and
@@ -199,6 +207,7 @@ the file. Posting it anywhere is the human's call, every time.
 | Music that competes with the words: vocals, a lead melody, anything ominous | A steady bed ~20 dB under the voice, ducked under speech, up for the logo |
 | A music take shorter than the video | Check the fit; Suno honors `duration: 180`. A take's `audio_url` once served a truncated file (`music.py` falls back to the stream URL) |
 | Re-rendering the picture for a sound change | `mix.py` muxes new audio onto the finished video |
+| Trusting the build's safe-zone check for a scene's own labels (it checks titles) | `qa.py`'s frame scan; move every word it finds in the red, vertical cut only |
 | Reading `qa.py`'s "audio drops 15 LU" as broken | Expected: it fires on narration pauses (it was built for music) |
 | A number on screen not re-checked on render day | Re-check every number against its source, with the source tag beside it |
 | Paid generation without a yes and a number | Every paid script prints the cost and needs `--yes`, stops at a cap, and logs to `ledger.csv` |

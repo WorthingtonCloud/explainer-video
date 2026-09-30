@@ -549,8 +549,9 @@ Object.assign(SCENES, {
     exLight(stage, 540, 640, 780, seg, 28, 61);
     const rig = exRig(stage, seg, { rotationX: 14, rotationY: -10 }, { rotationX: 4, rotationY: 8 });
     const cx = 540, cy = 640;
-    // [label, icon, x, y, width]: "OTHER TEAM" needs a wider card, grown to the left so the docks stay put
-    const SYS = [["TICKET", "ticket", 130, 260, 220], ["CODE", "code", 730, 260, 220], ["LOGS", "logs", 730, 910, 220], ["OTHER TEAM", "team", 60, 910, 290]];
+    // [label, icon, x, y, width]: "OTHER TEAM" needs a wider card, grown to the left so the docks stay put; on a
+    // vertical frame it starts at 120, not 60: a phone's full-screen player crops about 9% off each side
+    const SYS = [["TICKET", "ticket", 130, 260, 220], ["CODE", "code", 730, 260, 220], ["LOGS", "logs", 730, 910, 220], ["OTHER TEAM", "team", LAND ? 60 : 120, 910, 290]];
     const ctr = SYS.map(([, , x, y, w]) => ({ x: x + w / 2, y: y + 55 }));
     const dock = SYS.map(([, , x, y, w]) => ({ x: x < cx ? x + w + 50 : x - 50, y: y < cy ? y + 160 : y - 50 }));
     const lines = svg("svg", { width: 1080, height: 1400, style: "position:absolute;left:0;top:0;overflow:visible" }, rig);
@@ -825,6 +826,20 @@ if (LAND) for (const k of Object.keys(SCENES)) {
     let first = true;  // the first move paints its start at load; every later one waits for its time (IR)
     const move = (t, from, to) => { tl.fromTo(slide, { x: from }, { x: to, duration: GL, ease: "power2.inOut", ...(first ? {} : IR) }, t); first = false; };
     for (const [a, b] of spans) { if (a > -Infinity) move(a, DX, 0); if (b < Infinity) move(b, 0, DX); }
+    return out;
+  };
+}
+
+// Vertical: a phone's full-screen player hides the top 10% under its status bar. Four scenes open on a panel whose mono
+// kicker sat at ~9% height, so on a vertical cut the whole scene rides 60 units lower (still clear of the title zone).
+// Found by qa.py's frame scan; the widescreen cut is untouched. Copy this shape when a scene's own label lands in the red.
+if (!LAND) for (const k of ["paradox", "lights", "courier", "joe"]) {
+  const draw = SCENES[k];
+  if (!draw) continue;
+  SCENES[k] = (stage, seg, f) => {
+    const out = draw(stage, seg, f);
+    const low = document.createElement("div"); low.style.cssText = "position:absolute;inset:0;transform:translateY(60px)";
+    stage.before(low); low.appendChild(stage);
     return out;
   };
 }

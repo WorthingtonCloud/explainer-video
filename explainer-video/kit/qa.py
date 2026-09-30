@@ -66,6 +66,58 @@ if H > W:
        "-frames:v", "1", "-q:v", "3", f"qa/{base}-safe.jpg")
     print(f"  safe    qa/{base}-safe.jpg  ← no words in the red: phones crop the sides, buttons cover the rest")
 
+    # ...and measured, four frames a second: anything bright (a word, a label, an icon) inside a covered area, as
+    # time ranges. The build's safe-zone check only sees titles, and the one-a-second sheet is too small to read, so a
+    # scene's own labels can slip past both (Sep 30, 2026: four panel kickers sat under the status bar and a card
+    # touched the side crop, all in an approved cut). Fix a word the scan finds; an icon or full-frame footage may stay.
+    try:
+        import numpy as np
+    except ImportError:
+        np = None
+        print("  ⚠️  safe-zone scan skipped: it needs numpy (on a Mac, run qa.py with /usr/bin/python3)")
+    if np is not None:
+        # half size, not less: at quarter size a small mono label blurs below the threshold and the scan misses it
+        sw, sh, rate = 540, 960, 4
+        ZONES = {"top (status bar)": (0, 0, 1, 0.10), "bottom (caption, scrubber)": (0, 0.84, 1, 1),
+                 "left (cropped)": (0, 0.10, 0.11, 0.84), "right (cropped)": (0.89, 0.10, 1, 0.84),
+                 "button rail": (0.80, 0.62, 0.89, 0.84)}
+        cuts_px = {n: (slice(int(y0 * sh), int(y1 * sh)), slice(int(x0 * sw), int(x1 * sw))) for n, (x0, y0, x1, y1) in ZONES.items()}
+        lit = {n: [] for n in ZONES}
+        p = subprocess.Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", src, "-vf",
+                              f"fps={rate},scale={sw}:{sh},format=gray", "-f", "rawvideo", "-"], stdout=subprocess.PIPE)
+        while (buf := p.stdout.read(sw * sh)) and len(buf) == sw * sh:  # one frame at a time: a whole cut won't fit
+            fr = np.frombuffer(buf, np.uint8).reshape(sh, sw)
+            for n, (ys, xs) in cuts_px.items():
+                lit[n].append(int((fr[ys, xs] > 150).sum()))
+        p.wait()
+        found = []
+        for name in ZONES:
+            runs = []
+            for i in np.nonzero(np.array(lit[name]) > 40)[0]:  # forty bright pixels at half size: about one small word
+                t = i / rate
+                if runs and t - runs[-1][1] <= 0.5:
+                    runs[-1][1] = t
+                else:
+                    runs.append([t, t])
+            if runs:
+                found.append((name, runs))
+                print(f"  ⚠️  covered area  {name}: " + ", ".join(f"{a:.1f}s" if a == b else f"{a:.1f}–{b:.1f}s" for a, b in runs))
+        if found:
+            # one frame from the middle of each range, zones shaded, so the fix is obvious at a glance
+            mids = sorted({round((a + b) / 2, 2) for _, runs in found for a, b in runs})[:30]
+            for k, t in enumerate(mids):
+                ff("-ss", f"{t}", "-i", src, "-frames:v", "1", "-vf", f"{zones},scale=270:-2,format=yuvj420p",
+                   f"qa/_hit{k:02d}.jpg")
+            ff("-pattern_type", "glob", "-i", "qa/_hit*.jpg", "-vf",
+               f"tile={min(6, len(mids))}x{-(-len(mids) // 6)}:padding=4:color=white", "-q:v", "3", f"qa/{base}-safe-hits.jpg")
+            for f in glob.glob("qa/_hit*.jpg"):
+                os.remove(f)
+            print(f"  hits    qa/{base}-safe-hits.jpg  (one frame per range above, in time order: {', '.join(f'{t:g}s' for t in mids)})"
+                  " ← a WORD that sits in the red gets moved;"
+                  " decoration, full-frame footage, and a word flying in or out (a hit under a second) may stay")
+        else:
+            print("  scan    nothing bright in any covered area, four frames a second, start to end")
+
 # The cut list build.mjs wrote next to the video: where every segment starts and how it arrives.
 cuts_file = src.replace(".mp4", ".cuts.json")
 cuts = json.load(open(cuts_file)) if os.path.exists(cuts_file) else []
