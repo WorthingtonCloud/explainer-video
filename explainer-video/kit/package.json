@@ -1,0 +1,11 @@
+{
+  "name": "explainer-video-kit",
+  "private": true,
+  "description": "Build kit for the explainer-video skill: HyperFrames renders the video; puppeteer runs the overlap audit and stills.",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "gsap": "3.15.0",
+    "hyperframes": "0.8.91",
+    "puppeteer": "^24.0.0"
+  }
+}
